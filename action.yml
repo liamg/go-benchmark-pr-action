@@ -1,0 +1,29 @@
+name: go-benchmark-pr-action
+description: 'Run go benchmarks on a PR, compare with the base branch, and write results as a comment. Fail the workflow if benchmarks regress below configured % threshold.'
+inputs:
+  token:
+    description: Github token with permission to write PR comments
+    required: true
+  duration_threshold:
+    description: 'Threshold for duration regression in % (use 0 for no threshold check)'
+    required: false 
+    default: '0'
+  memory_threshold:
+    description: 'Threshold for memory-usage regression in % (use 0 for no threshold check)'
+    required: false
+    default: '0'
+  allocs_threshold:
+    description: 'Threshold for allocation count regression in % (use 0 for no threshold check)'
+    required: false
+    default: '0'
+  benchmark_pattern:
+    description: 'Pattern to match benchmarks to run'
+    required: false
+    default: '.'
+  benchmark_package:
+    description: 'Package to run benchmarks for'
+    required: false
+    default: './...'
+runs:
+  using: docker
+  image: Dockerfile
