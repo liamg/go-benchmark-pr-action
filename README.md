@@ -25,7 +25,6 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: "stable"
-      # Run benchmark with `go test -bench` and stores the output to a file
       - uses: liamg/go-benchmark-pr-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
