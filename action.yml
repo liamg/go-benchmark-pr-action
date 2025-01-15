@@ -24,6 +24,10 @@ inputs:
     description: 'Package to run benchmarks for'
     required: false
     default: './...'
+  benchmark_seconds:
+    description: 'Duration to run each benchmark for'
+    required: false
+    default: '1'
 runs:
   using: docker
   image: Dockerfile

@@ -7,6 +7,8 @@ This is a simple GitHub action that runs benchmarks on both the head and base br
 
 It will post a comment showing the before/after changes, and can be configured to fail the PR check if certain regression thresholds are breached.
 
+![screenshot](screenshot.png)
+
 ## Example Usage
 
 ```yml
@@ -27,7 +29,7 @@ jobs:
       - uses: liamg/go-benchmark-pr-action@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          duration_threshold: 0.1 # +10% regression
+          duration_threshold: 10 # +10% regression
 ```
 
 ## Configuration
@@ -40,3 +42,4 @@ jobs:
 | allocs_threshold | Threshold for allocation count  regression in % (use 0 for no threshold check) | | No |
 | benchmark_pattern | Pattern passed to the `-bench` option of `go test` | `.` | No |
 | benchmark_package | Package to run benchmarks for e.g. `internal` | `./...` | No | 
+| benchmark_seconds | Duration to run each benchmark for | 1 | No |

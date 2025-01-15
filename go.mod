@@ -7,4 +7,7 @@ require (
 	github.com/sethvargo/go-githubactions v1.3.0
 )
 
-require github.com/google/go-querystring v1.1.0 // indirect
+require (
+	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/uuid v1.6.0
+)
