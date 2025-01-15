@@ -189,7 +189,7 @@ func getGithubEvent() (*githubEvent, error) {
 		if data, err := os.ReadFile(eventPath); err == nil {
 			var event githubEvent
 			if err := json.Unmarshal(data, &event); err == nil {
-				return event, nil
+				return &event, nil
 			}
 		}
 	}
