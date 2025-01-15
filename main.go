@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"strconv"
@@ -109,11 +110,14 @@ func calcPercentageChange(before, after int64, threshold float64) (float64, bool
 
 	percentage := float64(after-before) / float64(before)
 
-	if threshold > 0 && percentage > threshold {
+	// round to 2dp
+	percentage = math.Round(percentage*100) / 100
+
+	if threshold > 0 && percentage > threshold && percentage-threshold > 0.00001 {
 		return percentage, false, emojiDegraded
 	}
 	if percentage > 0 {
-		if percentage <= 0.01 {
+		if percentage <= 0.05 {
 			return percentage, false, emojiSlight
 		}
 		return percentage, false, emojiDegraded
@@ -167,40 +171,54 @@ func runBenchmarks(config Config) ([]Benchmark, error) {
 	if err != nil {
 		return nil, fmt.Errorf("benchmark error: %w: %s", err, string(output))
 	}
+	fmt.Println(string(output))
 	return parseOutput(output), nil
 }
 
-func getHeadSha() string {
-	// lol
+type githubEvent struct {
+	HeadRefName string `json:"ref_name"`
+	PullRequest struct {
+		Head struct {
+			Sha string `json:"sha"`
+		} `json:"head"`
+	} `json:"pull_request"`
+}
+
+func getGithubEvent() (*githubEvent, error) {
 	if eventPath := os.Getenv("GITHUB_EVENT_PATH"); eventPath != "" {
 		if data, err := os.ReadFile(eventPath); err == nil {
-			var event map[string]interface{}
+			var event githubEvent
 			if err := json.Unmarshal(data, &event); err == nil {
-				if raw, ok := event["pull_request"]; ok {
-					if pr, ok := raw.(map[string]interface{}); ok {
-						if raw, ok := pr["head"]; ok {
-							if head, ok := raw.(map[string]interface{}); ok {
-								if raw, ok := head["sha"]; ok {
-									if sha, ok := raw.(string); ok {
-										if len(sha) > 7 {
-											return sha[:7]
-										}
-										return sha
-									}
-								}
-							}
-						}
-					}
-				}
+				return event, nil
 			}
 		}
 	}
-	return "HEAD"
+	return nil, fmt.Errorf("failed to get github event")
 }
 
 func run() error {
 
+	baseBranch := "main"
+	if base := os.Getenv("GITHUB_BASE_REF"); base != "" {
+		baseBranch = base
+	}
+
 	config := loadConfig()
+	event, err := getGithubEvent()
+	if err != nil {
+		return fmt.Errorf("failed to read github event: %w", err)
+	}
+
+	if event.HeadRefName == baseBranch {
+		fmt.Println("Skipping benchmarking, this should only be used for PR events")
+		return nil
+	}
+
+	headCommit := event.PullRequest.Head.Sha
+	if len(headCommit) < 7 {
+		return fmt.Errorf("invalid head commit: %s", headCommit)
+	}
+	headCommit = headCommit[:7]
 
 	fmt.Println("Running benchmarks on head ...")
 	headBenchmarks, err := runBenchmarks(config)
@@ -213,11 +231,6 @@ func run() error {
 	fmt.Println("HEAD RESULTS")
 	printBenchmarks(headBenchmarks)
 	fmt.Println()
-
-	baseBranch := "main"
-	if base := os.Getenv("GITHUB_BASE_REF"); base != "" {
-		baseBranch = base
-	}
 
 	owner, repoName, ok := strings.Cut(os.Getenv("GITHUB_REPOSITORY"), "/")
 	if !ok {
@@ -233,8 +246,6 @@ func run() error {
 		return fmt.Errorf("failed to set safe.directory: %w", err)
 
 	}
-
-	headCommit := getHeadSha()
 
 	if _, err := runCommand("git", "-c", "protocol.version=2", "fetch", "--no-tags", "--prune", "--no-recurse-submodules", "--depth=1", "origin", "+"+baseBranch+":refs/remotes/base"); err != nil {
 		return fmt.Errorf("failed to fetch base branch '%s': %w", baseBranch, err)
