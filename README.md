@@ -37,9 +37,9 @@ jobs:
 | Name | Description | Default | Required |
 | ---- | ----------- | :-----: | :------: |
 | token | Github token with permission to write PR comments | | Yes | 
-| duration_threshold | Threshold for duration regression in % (use 0 for no threshold check) | | No |
-| memory_threshold | Threshold for memory-usage  regression in % (use 0 for no threshold check) | | No |
-| allocs_threshold | Threshold for allocation count  regression in % (use 0 for no threshold check) | | No |
+| duration_threshold | Threshold for duration regression in % (use 0 for no threshold check) | `0` | No |
+| memory_threshold | Threshold for memory-usage  regression in % (use 0 for no threshold check) | `0` | No |
+| allocs_threshold | Threshold for allocation count  regression in % (use 0 for no threshold check) | `0` | No |
 | benchmark_pattern | Pattern passed to the `-bench` option of `go test` | `.` | No |
 | benchmark_package | Package to run benchmarks for e.g. `internal` | `./...` | No | 
 | benchmark_seconds | Duration to run each benchmark for | 1 | No |
