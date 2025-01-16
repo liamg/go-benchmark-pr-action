@@ -111,7 +111,7 @@ func calcPercentageChange(before, after int64, threshold float64) (float64, bool
 	percentage := float64(after-before) / float64(before)
 
 	// round to 2dp
-	percentage = math.Round(percentage*100) / 100
+	percentage = math.Round(percentage*10000) / 10000
 
 	if threshold > 0 && percentage > threshold && percentage-threshold > 0.00001 {
 		return percentage, false, emojiDegraded
