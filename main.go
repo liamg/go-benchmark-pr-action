@@ -7,7 +7,6 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -280,9 +279,11 @@ func run() error {
 	var commentBuilder strings.Builder
 	commentBuilder.WriteString(fmt.Sprintf("## Benchmark Results (`%s` -> `%s`)\n\n", baseCommit, headCommit))
 
-	for pkg, benchmarks := range byPackage {
+	for _, benchmarks := range byPackage {
 
-		commentBuilder.WriteString(fmt.Sprintf("### %s\n", pkg))
+		commentBuilder.WriteString(fmt.Sprintf("### %s\n", benchmarks[0].Head.Package))
+		commentBuilder.WriteString("\n")
+		commentBuilder.WriteString(fmt.Sprintf("CPU: `%s`\n", benchmarks[0].Head.CPU))
 		commentBuilder.WriteString("\n")
 		commentBuilder.WriteString("| Suite | Metric | Before | After | % Change | Status |\n")
 		commentBuilder.WriteString("| --- | --- | --- | --- | --- | --- |\n")
@@ -378,6 +379,7 @@ func run() error {
 }
 
 type Benchmark struct {
+	CPU         string
 	Package     string
 	Name        string
 	Iterations  int64
@@ -440,13 +442,18 @@ func formatWithCommas(num int64) string {
 func parseOutput(output []byte) []Benchmark {
 	var benchmarks []Benchmark
 	var err error
-	lines := strings.Split(string(output), "\n")
-	sort.Sort(sort.Reverse(sort.StringSlice(lines)))
 	var pkg string
-	for _, line := range lines {
-		if strings.HasPrefix(line, "ok") {
-			if fields := strings.Fields(line); len(fields) > 2 {
+	var cpu string
+	for _, line := range strings.Split(string(output), "\n") {
+		if strings.HasPrefix(line, "pkg:") {
+			if fields := strings.Fields(line); len(fields) > 1 {
 				pkg = fields[1]
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "cpu:") {
+			if fields := strings.Fields(line); len(fields) > 1 {
+				cpu = fields[1]
 			}
 			continue
 		}
@@ -460,6 +467,7 @@ func parseOutput(output []byte) []Benchmark {
 		var benchmark Benchmark
 		benchmark.Name = fields[0]
 		benchmark.Package = pkg
+		benchmark.CPU = cpu
 		benchmark.Iterations, err = strconv.ParseInt(fields[1], 10, 64)
 		if err != nil {
 			continue
