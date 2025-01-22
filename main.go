@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -274,45 +275,55 @@ func run() error {
 		return nil
 	}
 
+	byPackage := benchmarksByPackage(union)
+
 	var commentBuilder strings.Builder
 	commentBuilder.WriteString(fmt.Sprintf("## Benchmark Results (`%s` -> `%s`)\n\n", baseCommit, headCommit))
-	commentBuilder.WriteString("| Suite | Metric | Before | After | % Change | Status |\n")
-	commentBuilder.WriteString("| --- | --- | --- | --- | --- | --- |\n")
 
-	for _, benchmark := range union {
+	for pkg, benchmarks := range byPackage {
 
-		writeRow(
-			&commentBuilder,
-			benchmark.Head.Name,
-			"Duration/Op",
-			benchmark.Base.NsPerOp,
-			benchmark.Head.NsPerOp,
-			(time.Nanosecond * time.Duration(benchmark.Base.NsPerOp)).String(),
-			(time.Nanosecond * time.Duration(benchmark.Head.NsPerOp)).String(),
-			config.DurationThreshold,
-		)
+		commentBuilder.WriteString(fmt.Sprintf("### %s\n", pkg))
+		commentBuilder.WriteString("\n")
+		commentBuilder.WriteString("| Suite | Metric | Before | After | % Change | Status |\n")
+		commentBuilder.WriteString("| --- | --- | --- | --- | --- | --- |\n")
 
-		writeRow(
-			&commentBuilder,
-			benchmark.Head.Name,
-			"Memory/Op",
-			benchmark.Base.BytesPerOp,
-			benchmark.Head.BytesPerOp,
-			byteCountSI(benchmark.Base.BytesPerOp),
-			byteCountSI(benchmark.Head.BytesPerOp),
-			config.MemoryThreshold,
-		)
+		for _, benchmark := range benchmarks {
 
-		writeRow(
-			&commentBuilder,
-			benchmark.Head.Name,
-			"Allocs/Op",
-			benchmark.Base.AllocsPerOp,
-			benchmark.Head.AllocsPerOp,
-			formatWithCommas(benchmark.Base.AllocsPerOp),
-			formatWithCommas(benchmark.Head.AllocsPerOp),
-			config.AllocsThreshold,
-		)
+			writeRow(
+				&commentBuilder,
+				benchmark.Head.Name,
+				"Duration/Op",
+				benchmark.Base.NsPerOp,
+				benchmark.Head.NsPerOp,
+				(time.Nanosecond * time.Duration(benchmark.Base.NsPerOp)).String(),
+				(time.Nanosecond * time.Duration(benchmark.Head.NsPerOp)).String(),
+				config.DurationThreshold,
+			)
+
+			writeRow(
+				&commentBuilder,
+				benchmark.Head.Name,
+				"Memory/Op",
+				benchmark.Base.BytesPerOp,
+				benchmark.Head.BytesPerOp,
+				byteCountSI(benchmark.Base.BytesPerOp),
+				byteCountSI(benchmark.Head.BytesPerOp),
+				config.MemoryThreshold,
+			)
+
+			writeRow(
+				&commentBuilder,
+				benchmark.Head.Name,
+				"Allocs/Op",
+				benchmark.Base.AllocsPerOp,
+				benchmark.Head.AllocsPerOp,
+				formatWithCommas(benchmark.Base.AllocsPerOp),
+				formatWithCommas(benchmark.Head.AllocsPerOp),
+				config.AllocsThreshold,
+			)
+		}
+
+		commentBuilder.WriteString("\n")
 	}
 
 	commentBuilder.WriteString(commentTag + "\n")
@@ -367,6 +378,7 @@ func run() error {
 }
 
 type Benchmark struct {
+	Package     string
 	Name        string
 	Iterations  int64
 	NsPerOp     int64
@@ -383,7 +395,7 @@ func unionBenchmarks(base, head []Benchmark) []BenchmarkDiff {
 	var benchmarks []BenchmarkDiff
 	for _, benchmark := range base {
 		for _, headBenchmark := range head {
-			if benchmark.Name == headBenchmark.Name {
+			if benchmark.Name == headBenchmark.Name && benchmark.Package == headBenchmark.Package {
 				benchmarks = append(benchmarks, BenchmarkDiff{
 					Base: benchmark,
 					Head: headBenchmark,
@@ -392,6 +404,14 @@ func unionBenchmarks(base, head []Benchmark) []BenchmarkDiff {
 		}
 	}
 	return benchmarks
+}
+
+func benchmarksByPackage(benchmarks []BenchmarkDiff) map[string][]BenchmarkDiff {
+	packages := make(map[string][]BenchmarkDiff)
+	for _, benchmark := range benchmarks {
+		packages[benchmark.Head.Package] = append(packages[benchmark.Head.Package], benchmark)
+	}
+	return packages
 }
 
 func formatWithCommas(num int64) string {
@@ -420,7 +440,16 @@ func formatWithCommas(num int64) string {
 func parseOutput(output []byte) []Benchmark {
 	var benchmarks []Benchmark
 	var err error
-	for _, line := range strings.Split(string(output), "\n") {
+	lines := strings.Split(string(output), "\n")
+	sort.Sort(sort.Reverse(sort.StringSlice(lines)))
+	var pkg string
+	for _, line := range lines {
+		if strings.HasPrefix(line, "ok") {
+			if fields := strings.Fields(line); len(fields) > 2 {
+				pkg = fields[1]
+			}
+			continue
+		}
 		if !strings.HasPrefix(line, "Benchmark_") {
 			continue
 		}
@@ -430,6 +459,7 @@ func parseOutput(output []byte) []Benchmark {
 		}
 		var benchmark Benchmark
 		benchmark.Name = fields[0]
+		benchmark.Package = pkg
 		benchmark.Iterations, err = strconv.ParseInt(fields[1], 10, 64)
 		if err != nil {
 			continue
