@@ -453,7 +453,7 @@ func parseOutput(output []byte) []Benchmark {
 		}
 		if strings.HasPrefix(line, "cpu:") {
 			if fields := strings.Fields(line); len(fields) > 1 {
-				cpu = fields[1]
+				cpu = strings.Join(fields[1:], " ")
 			}
 			continue
 		}
