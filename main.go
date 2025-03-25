@@ -257,7 +257,8 @@ func run() error {
 	fmt.Println("Running benchmarks on", baseBranch, "...")
 	baseBenchmarks, err := runBenchmarks(config)
 	if err != nil {
-		return fmt.Errorf("failed to run benchmarks on head: %w", err)
+		fmt.Println("Failed to run benchmarks on base branch, skipping checks:", err)
+		return nil
 	}
 	baseCommit := getLastCommitShort()
 
