@@ -138,22 +138,32 @@ func runCommand(command ...string) (string, error) {
 	return string(output), nil
 }
 
-func writeRow(b *strings.Builder, name, metric string, before, after int64, beforeStr, afterStr string, threshold float64) {
+func writeRow(b *strings.Builder, name, metric string, before, after int64, beforeStr, afterStr string, threshold float64, includeDiff bool) {
 
-	percentage, infinite, emoji := calcPercentageChange(before, after, threshold)
-	pcString := ""
-	if infinite {
-		pcString = "+∞%"
-		if percentage < 0 {
-			pcString = "-∞%"
+	var pcString string
+	var emoji string
+
+	if includeDiff {
+		var percentage float64
+		var infinite bool
+		percentage, infinite, emoji = calcPercentageChange(before, after, threshold)
+		if infinite {
+			pcString = "+∞%"
+			if percentage < 0 {
+				pcString = "-∞%"
+			}
+		} else {
+			pcString = fmt.Sprintf("%.2f%%", percentage*100)
+			if percentage > 0 {
+				pcString = "+" + pcString
+			} else if percentage == 0 {
+				pcString = "_same_"
+			}
 		}
 	} else {
-		pcString = fmt.Sprintf("%.2f%%", percentage*100)
-		if percentage > 0 {
-			pcString = "+" + pcString
-		} else if percentage == 0 {
-			pcString = "_same_"
-		}
+		pcString = "-"
+		emoji = "emojiOK"
+
 	}
 
 	b.WriteString(fmt.Sprintf(
@@ -279,14 +289,14 @@ func run() error {
 	fmt.Println()
 
 	var fail bool
-	union := unionBenchmarks(baseBenchmarks, headBenchmarks)
+	diffed := compareBenchmarks(baseBenchmarks, headBenchmarks)
 
-	if len(union) == 0 {
+	if len(diffed) == 0 {
 		fmt.Println("No benchmarks to compare.")
 		return nil
 	}
 
-	byPackage := benchmarksByPackage(union)
+	byPackage := benchmarksByPackage(diffed)
 
 	var commentBuilder strings.Builder
 	commentBuilder.WriteString(fmt.Sprintf("## Benchmark Results (`%s` -> `%s`)\n\n", baseCommit, headCommit))
@@ -302,38 +312,101 @@ func run() error {
 
 		for _, benchmark := range benchmarks {
 
-			writeRow(
-				&commentBuilder,
-				benchmark.Head.Name,
-				"Duration/Op",
-				benchmark.Base.NsPerOp,
-				benchmark.Head.NsPerOp,
-				(time.Nanosecond * time.Duration(benchmark.Base.NsPerOp)).String(),
-				(time.Nanosecond * time.Duration(benchmark.Head.NsPerOp)).String(),
-				config.DurationThreshold,
-			)
+			name := ""
+			if benchmark.Base != nil {
+				name = benchmark.Base.Name
+			} else if benchmark.Head != nil {
+				name = benchmark.Head.Name
+			}
 
-			writeRow(
-				&commentBuilder,
-				benchmark.Head.Name,
-				"Memory/Op",
-				benchmark.Base.BytesPerOp,
-				benchmark.Head.BytesPerOp,
-				byteCountSI(benchmark.Base.BytesPerOp),
-				byteCountSI(benchmark.Head.BytesPerOp),
-				config.MemoryThreshold,
-			)
+			{
+				// duration
+				var before, after int64
+				var beforeStr, afterStr string
+				if benchmark.Base != nil {
+					before = benchmark.Base.NsPerOp
+					beforeStr = (time.Nanosecond * time.Duration(benchmark.Base.NsPerOp)).String()
+				} else {
+					beforeStr = "_added_"
+				}
+				if benchmark.Head != nil {
+					after = benchmark.Head.NsPerOp
+					afterStr = (time.Nanosecond * time.Duration(benchmark.Head.NsPerOp)).String()
+				} else {
+					afterStr = "_removed_"
+				}
 
-			writeRow(
-				&commentBuilder,
-				benchmark.Head.Name,
-				"Allocs/Op",
-				benchmark.Base.AllocsPerOp,
-				benchmark.Head.AllocsPerOp,
-				formatWithCommas(benchmark.Base.AllocsPerOp),
-				formatWithCommas(benchmark.Head.AllocsPerOp),
-				config.AllocsThreshold,
-			)
+				writeRow(
+					&commentBuilder,
+					name,
+					"Duration/Op",
+					before,
+					after,
+					beforeStr,
+					afterStr,
+					config.DurationThreshold,
+					benchmark.Base != nil && benchmark.Head != nil,
+				)
+			}
+
+			{
+				// memory
+				var before, after int64
+				var beforeStr, afterStr string
+				if benchmark.Base != nil {
+					before = benchmark.Base.BytesPerOp
+					beforeStr = byteCountSI(benchmark.Base.BytesPerOp)
+				} else {
+					beforeStr = "_added_"
+				}
+				if benchmark.Head != nil {
+					after = benchmark.Head.BytesPerOp
+					afterStr = byteCountSI(benchmark.Head.BytesPerOp)
+				} else {
+					afterStr = "_removed_"
+				}
+
+				writeRow(
+					&commentBuilder,
+					name,
+					"Memory/Op",
+					before,
+					after,
+					beforeStr,
+					afterStr,
+					config.MemoryThreshold,
+					benchmark.Base != nil && benchmark.Head != nil,
+				)
+			}
+
+			{
+				// allocs
+				var before, after int64
+				var beforeStr, afterStr string
+				if benchmark.Base != nil {
+					before = benchmark.Base.AllocsPerOp
+					beforeStr = formatWithCommas(benchmark.Base.AllocsPerOp)
+				} else {
+					beforeStr = "_added_"
+				}
+				if benchmark.Head != nil {
+					after = benchmark.Head.AllocsPerOp
+					afterStr = formatWithCommas(benchmark.Head.AllocsPerOp)
+				} else {
+					afterStr = "_removed_"
+				}
+				writeRow(
+					&commentBuilder,
+					name,
+					"Allocs/Op",
+					before,
+					after,
+					beforeStr,
+					afterStr,
+					config.AllocsThreshold,
+					benchmark.Base != nil && benchmark.Head != nil,
+				)
+			}
 		}
 
 		commentBuilder.WriteString("\n")
@@ -401,20 +474,44 @@ type Benchmark struct {
 }
 
 type BenchmarkDiff struct {
-	Head Benchmark
-	Base Benchmark
+	Head *Benchmark
+	Base *Benchmark
 }
 
-func unionBenchmarks(base, head []Benchmark) []BenchmarkDiff {
+func compareBenchmarks(base, head []Benchmark) []BenchmarkDiff {
 	var benchmarks []BenchmarkDiff
 	for _, benchmark := range base {
+		var found bool
 		for _, headBenchmark := range head {
 			if benchmark.Name == headBenchmark.Name && benchmark.Package == headBenchmark.Package {
 				benchmarks = append(benchmarks, BenchmarkDiff{
-					Base: benchmark,
-					Head: headBenchmark,
+					Base: &benchmark,
+					Head: &headBenchmark,
 				})
+				found = true
+				break
 			}
+		}
+		if !found {
+			benchmarks = append(benchmarks, BenchmarkDiff{
+				Base: &benchmark,
+				Head: nil,
+			})
+		}
+	}
+	for _, benchmark := range head {
+		var found bool
+		for _, baseBenchmark := range base {
+			if benchmark.Name == baseBenchmark.Name && benchmark.Package == baseBenchmark.Package {
+				found = true
+				break
+			}
+		}
+		if !found {
+			benchmarks = append(benchmarks, BenchmarkDiff{
+				Base: nil,
+				Head: &benchmark,
+			})
 		}
 	}
 	return benchmarks
@@ -423,7 +520,13 @@ func unionBenchmarks(base, head []Benchmark) []BenchmarkDiff {
 func benchmarksByPackage(benchmarks []BenchmarkDiff) map[string][]BenchmarkDiff {
 	packages := make(map[string][]BenchmarkDiff)
 	for _, benchmark := range benchmarks {
-		packages[benchmark.Head.Package] = append(packages[benchmark.Head.Package], benchmark)
+		pkg := ""
+		if benchmark.Head != nil {
+			pkg = benchmark.Head.Package
+		} else if benchmark.Base != nil {
+			pkg = benchmark.Base.Package
+		}
+		packages[pkg] = append(packages[pkg], benchmark)
 	}
 	return packages
 }
