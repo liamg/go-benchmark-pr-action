@@ -173,6 +173,7 @@ func runBenchmarks(config Config) ([]Benchmark, error) {
 	if config.BenchCount > 0 {
 		args = append(args, fmt.Sprintf("-count=%d", config.BenchCount))
 	}
+	fmt.Println("Running: go", strings.Join(args, " "))
 	output, err := exec.Command("go", args...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("benchmark error: %w: %s", err, string(output))
