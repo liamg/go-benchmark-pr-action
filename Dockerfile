@@ -10,6 +10,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/action .
 
 FROM golang:1.24-alpine AS final
 
+RUN apk add --no-cache git
+
 COPY --from=builder /app/action /action
 
 ENTRYPOINT ["/action"]
