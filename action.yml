@@ -35,3 +35,5 @@ inputs:
 runs:
   using: docker
   image: docker://ghcr.io/liamg/go-benchmark-pr-action:v1
+  env:
+    GOCACHE: /github/workspace/.go-cache/build

@@ -228,10 +228,12 @@ func run() error {
 	headCommit = headCommit[:7]
 
 	fmt.Println("Running benchmarks on head ...")
+	start := time.Now()
 	headBenchmarks, err := runBenchmarks(config)
 	if err != nil {
 		return fmt.Errorf("failed to run benchmarks on head: %w", err)
 	}
+	fmt.Println("Took", time.Since(start))
 
 	// if not in CI, we just want some pretty results
 	fmt.Println()
@@ -262,11 +264,13 @@ func run() error {
 	}
 
 	fmt.Println("Running benchmarks on", baseBranch, "...")
+	start = time.Now()
 	baseBenchmarks, err := runBenchmarks(config)
 	if err != nil {
 		fmt.Println("Failed to run benchmarks on base branch, skipping checks:", err)
 		return nil
 	}
+	fmt.Println("Took", time.Since(start))
 	baseCommit := getLastCommitShort()
 
 	fmt.Println()
