@@ -30,4 +30,4 @@ inputs:
     default: '1'
 runs:
   using: docker
-  image: Dockerfile
+  image: docker://ghcr.io/liamg/go-benchmark-pr-action:v1
