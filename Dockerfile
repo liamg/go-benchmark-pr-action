@@ -8,7 +8,7 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/action .
 
-FROM scratch
+FROM golang:1.24-alpine AS final
 
 COPY --from=builder /app/action /action
 
