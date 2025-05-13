@@ -1,12 +1,15 @@
-# Specify the version of Go to use
-FROM golang:1.23
-
-# Copy all the files from the host into the container
+FROM golang:1.24-alpine AS builder
 WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
 COPY . .
 
-# Compile the action
-RUN go build -o /bin/action .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/action .
 
-# Specify the container's entrypoint as the action
-ENTRYPOINT ["/bin/action"]
+FROM scratch
+
+COPY --from=builder /app/action /action
+
+ENTRYPOINT ["/action"]

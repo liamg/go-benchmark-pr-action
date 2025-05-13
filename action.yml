@@ -28,6 +28,10 @@ inputs:
     description: 'Duration to run each benchmark for'
     required: false
     default: '1'
+  benchmark_count:
+    description: 'Number of times to run each benchmark (leave empty to use defaults)'
+    required: false
+    default: '0'
 runs:
   using: docker
   image: docker://ghcr.io/liamg/go-benchmark-pr-action:v1

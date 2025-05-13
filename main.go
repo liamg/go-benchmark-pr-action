@@ -36,6 +36,7 @@ type Config struct {
 	BenchPattern      string  // e.g. "."
 	BenchPackage      string  // e.g. "./..."
 	BenchSeconds      int     // e.g. 1
+	BenchCount        int     // e.g. 0
 }
 
 const commentTag = "<!-- liamg/benchmark-pr-action -->"
@@ -58,6 +59,7 @@ func loadConfig() Config {
 		BenchPattern:      githubactions.GetInput("benchmark_pattern"),
 		BenchPackage:      githubactions.GetInput("benchmark_package"),
 		BenchSeconds:      readIntInput("benchmark_seconds", 1),
+		BenchCount:        readIntInput("benchmark_count", 0),
 	}
 	githubactions.AddMask(config.Token)
 	return config
@@ -167,7 +169,11 @@ func writeRow(b *strings.Builder, name, metric string, before, after int64, befo
 }
 
 func runBenchmarks(config Config) ([]Benchmark, error) {
-	output, err := exec.Command("go", "test", "-run=^$", "-bench="+config.BenchPattern, "-benchmem", config.BenchPackage, "-benchtime", fmt.Sprintf("%ds", config.BenchSeconds)).Output()
+	args := []string{"test", "-run=^$", "-bench=" + config.BenchPattern, "-benchmem", config.BenchPackage, "-benchtime", fmt.Sprintf("%ds", config.BenchSeconds)}
+	if config.BenchCount > 0 {
+		args = append(args, fmt.Sprintf("-count=%d", config.BenchCount))
+	}
+	output, err := exec.Command("go", args...).Output()
 	if err != nil {
 		return nil, fmt.Errorf("benchmark error: %w: %s", err, string(output))
 	}
