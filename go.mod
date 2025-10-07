@@ -1,6 +1,6 @@
 module github.com/liamg/go-benchmark-pr-action
 
-go 1.23.4
+go 1.25.1
 
 require (
 	github.com/google/go-github/v68 v68.0.0
