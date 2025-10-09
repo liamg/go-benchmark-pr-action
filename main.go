@@ -154,9 +154,9 @@ func writeRow(b *strings.Builder, name, metric string, before, after int64, befo
 			}
 		} else {
 			pcString = fmt.Sprintf("%.2f%%", percentage*100)
-			if percentage > 0 {
+			if percentage > 0.0005 { // ignore <0.05% increase, this seems to vary generally with each build
 				pcString = "+" + pcString
-			} else if percentage == 0 {
+			} else if percentage >= 0 {
 				pcString = "_same_"
 			}
 		}
