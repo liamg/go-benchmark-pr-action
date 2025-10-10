@@ -118,7 +118,7 @@ func calcPercentageChange(before, after int64, threshold float64) (float64, bool
 	if threshold > 0 && percentage > threshold && percentage-threshold > 0.00001 {
 		return percentage, false, emojiDegraded
 	}
-	if percentage > 0 {
+	if percentage > 0.0005 {
 		if percentage <= 0.05 {
 			return percentage, false, emojiSlight
 		}
