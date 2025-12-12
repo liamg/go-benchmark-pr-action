@@ -303,9 +303,20 @@ func run() error {
 
 	for _, benchmarks := range byPackage {
 
-		commentBuilder.WriteString(fmt.Sprintf("### %s\n", benchmarks[0].Head.Package))
+		var benchPackage string
+		var benchCPU string
+
+		if benchmarks[0].Head != nil {
+			benchPackage = benchmarks[0].Head.Package
+			benchCPU = benchmarks[0].Head.CPU
+		} else {
+			benchPackage = benchmarks[0].Base.Package
+			benchCPU = benchmarks[0].Base.CPU
+		}
+
+		commentBuilder.WriteString(fmt.Sprintf("### %s\n", benchPackage))
 		commentBuilder.WriteString("\n")
-		commentBuilder.WriteString(fmt.Sprintf("CPU: `%s`\n", benchmarks[0].Head.CPU))
+		commentBuilder.WriteString(fmt.Sprintf("CPU: `%s`\n", benchCPU))
 		commentBuilder.WriteString("\n")
 		commentBuilder.WriteString("| Suite | Metric | Before | After | % Change | Status |\n")
 		commentBuilder.WriteString("| --- | --- | --- | --- | --- | --- |\n")
