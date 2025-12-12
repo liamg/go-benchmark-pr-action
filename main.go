@@ -329,6 +329,12 @@ func run() error {
 				name = benchmark.Head.Name
 			}
 
+			name = strings.TrimPrefix(name, "Benchmark")
+			name = strings.TrimPrefix(name, "_")
+			if index := strings.LastIndex(name, "-"); index > 0 {
+				name = name[:index]
+			}
+
 			{
 				// duration
 				var before, after int64
@@ -349,7 +355,7 @@ func run() error {
 				writeRow(
 					&commentBuilder,
 					name,
-					"Duration/Op",
+					"Duration",
 					before,
 					after,
 					beforeStr,
@@ -379,7 +385,7 @@ func run() error {
 				writeRow(
 					&commentBuilder,
 					name,
-					"Memory/Op",
+					"Memory",
 					before,
 					after,
 					beforeStr,
@@ -408,7 +414,7 @@ func run() error {
 				writeRow(
 					&commentBuilder,
 					name,
-					"Allocs/Op",
+					"Allocs",
 					before,
 					after,
 					beforeStr,
