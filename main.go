@@ -162,8 +162,7 @@ func writeRow(b *strings.Builder, name, metric string, before, after int64, befo
 		}
 	} else {
 		pcString = "-"
-		emoji = "emojiOK"
-
+		emoji = emojiOK
 	}
 
 	b.WriteString(fmt.Sprintf(
