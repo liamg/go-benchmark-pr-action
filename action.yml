@@ -1,12 +1,12 @@
 name: go-benchmark-pr-action
-description: 'Run go benchmarks on a PR, compare with the base branch, and write results as a comment. Fail the workflow if benchmarks regress below configured % threshold.'
+description: 'Run go benchmarks on a PR, compare with the base branch, and write results as a comment. Fail the workflow if benchmarks regress below configured % threshold. Requires Go to be available on PATH (e.g. via actions/setup-go).'
 inputs:
   token:
     description: Github token with permission to write PR comments
     required: true
   duration_threshold:
     description: 'Threshold for duration regression in % (use 0 for no threshold check)'
-    required: false 
+    required: false
     default: '0'
   memory_threshold:
     description: 'Threshold for memory-usage regression in % (use 0 for no threshold check)'
@@ -33,7 +33,24 @@ inputs:
     required: false
     default: '0'
 runs:
-  using: docker
-  image: docker://ghcr.io/liamg/go-benchmark-pr-action:v1
-  env:
-    GOCACHE: /github/workspace/.go-cache/build
+  using: composite
+  steps:
+    - name: Build benchmark-pr-action
+      shell: bash
+      run: |
+        cd "$GITHUB_ACTION_PATH"
+        go build -o "$RUNNER_TEMP/go-benchmark-pr-action" .
+
+    - name: Run benchmarks
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: "$RUNNER_TEMP/go-benchmark-pr-action"
+      env:
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DURATION_THRESHOLD: ${{ inputs.duration_threshold }}
+        INPUT_MEMORY_THRESHOLD: ${{ inputs.memory_threshold }}
+        INPUT_ALLOCS_THRESHOLD: ${{ inputs.allocs_threshold }}
+        INPUT_BENCHMARK_PATTERN: ${{ inputs.benchmark_pattern }}
+        INPUT_BENCHMARK_PACKAGE: ${{ inputs.benchmark_package }}
+        INPUT_BENCHMARK_SECONDS: ${{ inputs.benchmark_seconds }}
+        INPUT_BENCHMARK_COUNT: ${{ inputs.benchmark_count }}
