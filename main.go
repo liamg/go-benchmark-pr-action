@@ -187,11 +187,16 @@ func runBenchmarks(config Config, dir string) ([]Benchmark, error) {
 	if dir != "" {
 		cmd.Dir = dir
 	}
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("benchmark error: %w: %s", err, string(output))
+		return nil, fmt.Errorf("benchmark error: %w\nstdout:\n%s\nstderr:\n%s", err, string(output), stderr.String())
 	}
 	fmt.Println(string(output))
+	if errs := stderr.String(); errs != "" {
+		fmt.Fprintln(os.Stderr, errs)
+	}
 	return parseOutput(output), nil
 }
 
