@@ -178,10 +178,13 @@ func writeRow(b *strings.Builder, name, metric string, before, after int64, befo
 }
 
 func runBenchmarks(config Config, dir string) ([]Benchmark, error) {
-	args := []string{"test", "-run=^$", "-bench=" + config.BenchPattern, "-benchmem", config.BenchPackage, "-benchtime", fmt.Sprintf("%ds", config.BenchSeconds)}
+	args := []string{"test", "-run=^$", "-bench=" + config.BenchPattern, "-benchmem", "-benchtime", fmt.Sprintf("%ds", config.BenchSeconds)}
 	if config.BenchCount > 0 {
 		args = append(args, fmt.Sprintf("-count=%d", config.BenchCount))
 	}
+	// benchmark_package may be a whitespace-separated list of package patterns,
+	// so split it so each pattern is passed as its own arg to `go test`.
+	args = append(args, strings.Fields(config.BenchPackage)...)
 	fmt.Println("Running: go", strings.Join(args, " "))
 	cmd := exec.Command("go", args...)
 	if dir != "" {
